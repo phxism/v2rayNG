@@ -104,7 +104,9 @@
                         tools:text="214ms" />
                 </LinearLayout>
 
+<!--                隐藏每个配置的分享修改删除按钮-->
                 <LinearLayout
+                    android:visibility="gone"
                     android:layout_width="wrap_content"
                     android:layout_height="0dp"
                     android:layout_weight="1"

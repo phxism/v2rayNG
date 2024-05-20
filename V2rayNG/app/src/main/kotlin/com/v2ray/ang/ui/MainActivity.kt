@@ -231,6 +231,11 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
         return true
     }
 
+    /**
+     * 这是右上角菜单项的点击选中事件
+     * @param item MenuItem
+     * @return Boolean
+     */
     override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {
         R.id.import_qrcode -> {
             importQRcode(true)
@@ -423,6 +428,10 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
         return true
     }
 
+    /**
+     * @param server 服务
+     * @param subid 订阅的ID
+     */
     fun importBatchConfig(server: String?, subid: String = "") {
         val subid2 = if(subid.isNullOrEmpty()){
             mainViewModel.subscriptionId
@@ -661,6 +670,11 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
         return super.onKeyDown(keyCode, event)
     }
 
+    /***
+     * 这是左侧导航项的点击选中事件
+     * @param item MenuItem
+     * @return Boolean
+     */
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         // Handle navigation view item clicks here.
         when (item.itemId) {

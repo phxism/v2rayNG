@@ -20,7 +20,9 @@
     </group>
 
     <group android:id="@+id/group_id2">
+<!--        隐藏推广链接-->
         <item
+            android:visible="false"
             android:id="@+id/promotion"
             android:icon="@drawable/ic_promotion_24dp"
             android:title="@string/title_pref_promotion" />

@@ -63,7 +63,9 @@
             </item>
         </menu>
     </item>
+<!--    隐藏过滤菜单-->
     <item
+        android:visible="false"
         android:id="@+id/filter_config"
         android:icon="@drawable/ic_outline_filter_alt_24"
         android:title="@string/title_filter_config"
