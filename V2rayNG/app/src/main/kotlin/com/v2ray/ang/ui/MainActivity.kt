@@ -9,7 +9,6 @@ import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
 import android.text.TextUtils
-import android.util.Log
 import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
@@ -28,7 +27,6 @@ import com.google.android.material.navigation.NavigationView
 import com.tbruyelle.rxpermissions.RxPermissions
 import com.tencent.mmkv.MMKV
 import com.v2ray.ang.AppConfig
-import com.v2ray.ang.AppConfig.ANG_PACKAGE
 import com.v2ray.ang.R
 import com.v2ray.ang.databinding.ActivityMainBinding
 import com.v2ray.ang.databinding.LayoutProgressBinding
@@ -40,15 +38,12 @@ import com.v2ray.ang.util.AngConfigManager
 import com.v2ray.ang.util.MmkvManager
 import com.v2ray.ang.util.Utils
 import com.v2ray.ang.viewmodel.MainViewModel
-import com.v2ray.ang.viewmodel.SubViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.drakeet.support.toast.ToastCompat
 import rx.Observable
 import rx.android.schedulers.AndroidSchedulers
-import java.io.File
-import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
 
 class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedListener {
@@ -64,7 +59,6 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
     }
     private var mItemTouchHelper: ItemTouchHelper? = null
     val mainViewModel: MainViewModel by viewModels()
-    val subViewModel: SubViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -114,8 +108,7 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
 
 
         setupViewModel()
-        copyAssets()
-        //migrateLegacy()
+        mainViewModel.copyAssets(assets)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             RxPermissions(this)
@@ -163,45 +156,6 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
         }
         mainViewModel.startListenBroadcast()
     }
-
-    private fun copyAssets() {
-        val extFolder = Utils.userAssetPath(this)
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val geo = arrayOf("geosite.dat", "geoip.dat")
-                assets.list("")
-                        ?.filter { geo.contains(it) }
-                        ?.filter { !File(extFolder, it).exists() }
-                        ?.forEach {
-                            val target = File(extFolder, it)
-                            assets.open(it).use { input ->
-                                FileOutputStream(target).use { output ->
-                                    input.copyTo(output)
-                                }
-                            }
-                            Log.i(ANG_PACKAGE, "Copied from apk assets folder to ${target.absolutePath}")
-                        }
-            } catch (e: Exception) {
-                Log.e(ANG_PACKAGE, "asset copy failed", e)
-            }
-        }
-    }
-
-//    private fun migrateLegacy() {
-//        lifecycleScope.launch(Dispatchers.IO) {
-//            val result = AngConfigManager.migrateLegacyConfig(this@MainActivity)
-//            if (result != null) {
-//                launch(Dispatchers.Main) {
-//                    if (result) {
-//                        toast(getString(R.string.migration_success))
-//                        mainViewModel.reloadServerList()
-//                    } else {
-//                        toast(getString(R.string.migration_fail))
-//                    }
-//                }
-//            }
-//        }
-//    }
 
     fun startV2Ray() {
         if (mainStorage?.decodeString(MmkvManager.KEY_SELECTED_SERVER).isNullOrEmpty()) {
@@ -335,6 +289,7 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
             AlertDialog.Builder(this).setMessage(R.string.del_config_comfirm)
                 .setPositiveButton(android.R.string.ok) { _, _ ->
                     mainViewModel.removeDuplicateServer()
+                    mainViewModel.reloadServerList()
                 }
                 .setNegativeButton(android.R.string.no) {_, _ ->
                     //do noting
@@ -379,7 +334,7 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
     /**
      * import config from qrcode
      */
-    fun importQRcode(forConfig: Boolean): Boolean {
+    private fun importQRcode(forConfig: Boolean): Boolean {
 //        try {
 //            startActivityForResult(Intent("com.google.zxing.client.android.SCAN")
 //                    .addCategory(Intent.CATEGORY_DEFAULT)
@@ -415,7 +370,7 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
     /**
      * import config from clipboard
      */
-    fun importClipboard()
+    private fun importClipboard()
             : Boolean {
         try {
             val clipboard = Utils.getClipboard(this)
@@ -427,14 +382,14 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
         return true
     }
 
-    fun importBatchConfig(server: String?) {
+    private fun importBatchConfig(server: String?) {
         val dialog = AlertDialog.Builder(this)
             .setView(LayoutProgressBinding.inflate(layoutInflater).root)
             .setCancelable(false)
             .show()
 
         lifecycleScope.launch(Dispatchers.IO) {
-            val count = subViewModel.importBatchConfig(server, mainViewModel.subscriptionId, true)
+            val count = AngConfigManager.importBatchConfig(server, mainViewModel.subscriptionId, true)
             delay(500L)
             launch(Dispatchers.Main) {
                 if (count > 0) {
@@ -448,7 +403,7 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
         }
     }
 
-    fun importConfigCustomClipboard()
+    private fun importConfigCustomClipboard()
             : Boolean {
         try {
             val configText = Utils.getClipboard(this)
@@ -467,7 +422,7 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
     /**
      * import config from local config file
      */
-    fun importConfigCustomLocal(): Boolean {
+    private fun importConfigCustomLocal(): Boolean {
         try {
             showFileChooser()
         } catch (e: Exception) {
@@ -477,7 +432,7 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
         return true
     }
 
-    fun importConfigCustomUrlClipboard()
+    private fun importConfigCustomUrlClipboard()
             : Boolean {
         try {
             val url = Utils.getClipboard(this)
@@ -495,7 +450,7 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
     /**
      * import config from url
      */
-    fun importConfigCustomUrl(url: String?): Boolean {
+    private fun importConfigCustomUrl(url: String?): Boolean {
         try {
             if (!Utils.isValidUrl(url)) {
                 toast(R.string.toast_invalid_url)
@@ -522,14 +477,14 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
     /**
      * import config from sub
      */
-    fun importConfigViaSub() : Boolean {
+    private fun importConfigViaSub() : Boolean {
         val dialog = AlertDialog.Builder(this)
             .setView(LayoutProgressBinding.inflate(layoutInflater).root)
             .setCancelable(false)
             .show()
 
         lifecycleScope.launch(Dispatchers.IO) {
-            val count = subViewModel.updateConfigViaSubAll()
+            val count = AngConfigManager.updateConfigViaSubAll()
             delay(500L)
             launch(Dispatchers.Main) {
                 if (count > 0) {
@@ -594,7 +549,7 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
     /**
      * import customize config
      */
-    fun importCustomizeConfig(server: String?) {
+    private fun importCustomizeConfig(server: String?) {
         try {
             if (server == null || TextUtils.isEmpty(server)) {
                 toast(R.string.toast_none_data)
@@ -614,7 +569,7 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
         }
     }
 
-    fun setTestState(content: String?) {
+    private fun setTestState(content: String?) {
         binding.tvTestState.text = content
     }
 
